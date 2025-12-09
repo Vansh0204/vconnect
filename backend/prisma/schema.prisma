@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VOLUNTEER
+  ORGANISER
+}
+
+enum SignupStatus {
+  REGISTERED
+  WAITLIST
+  ATTENDED
+  REJECTED
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  name           String
+  email          String        @unique
+  passwordHash   String
+  role           Role          @default(VOLUNTEER)
+  phone          String?
+  city           String?
+  state          String?
+  country        String?
+  skills         String?
+  totalHours     Float         @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organisation   Organisation?   // organiser --> organisation
+
+  postedEvents   Event[]       @relation("postedBy")
+  signups        EventSignup[]
+}
+
+model Organisation {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?
+  logoUrl       String?
+  verified      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organiser     User     @relation(fields: [organiserId], references: [id])
+  organiserId   Int      @unique   // only one organisation per organiser
+
+  events        Event[]
+}
+
+
+model Event {
+  id              Int            @id @default(autoincrement())
+  title           String
+  description     String
+  category        String
+  date            DateTime
+  durationHours   Float?
+  locationText    String
+  lat             Float?
+  lng             Float?
+  skillsRequired  String?
+  maxVolunteers   Int
+  currentVolCount Int            @default(0)
+  status          String         @default("UPCOMING")
+  posterUrl       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organisation    Organisation?  @relation(fields: [organisationId], references: [id])
+  organisationId  Int?
+
+  postedBy        User?          @relation("postedBy", fields: [postedById], references: [id])
+  postedById      Int?
+
+  signups         EventSignup[]
+}
+
+model EventSignup {
+  id           Int           @id @default(autoincrement())
+  event        Event         @relation(fields: [eventId], references: [id])
+  eventId      Int
+  volunteer    User          @relation(fields: [volunteerId], references: [id])
+  volunteerId  Int
+  status       SignupStatus  @default(REGISTERED)
+  hoursLogged  Float?
+  approved     Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  certificate  Certificate?
+}
+
+model Certificate {
+  id            Int         @id @default(autoincrement())
+  eventSignup   EventSignup @relation(fields: [eventSignupId], references: [id])
+  eventSignupId Int         @unique
+  fileUrl       String
+  issuedAt      DateTime    @default(now())
+}
+
